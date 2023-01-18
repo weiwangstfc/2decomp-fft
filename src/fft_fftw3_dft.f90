@@ -906,94 +906,89 @@ module decomp_2d_fft
                   call transpose_z_to_y(in_c,    wk2_c2c, sp)
                   call transpose_y_to_x(wk2_c2c, wk1_c2c, sp)
                   ! ===== 1D FFTs in X  =====
-                  call c2r_1m_x(wk1_c2c, wk1_c2c)
-
-
-
-                  ! ===== Swap Y --> X; 1D FFTs in X =====
-                  call transpose_y_to_x(wk2_r2c, out_c, sp)
-                  call c2c_1m_x(out_c, plan(0, 1))
+                  call c2r_1m_x(wk1_c2c, wk1_c2r)
+                  ! ===== Swap X --> Y; 1D DFTs in Y; Swap Y --> X =====
+                  call transpose_x_to_y(wk1_c2r, wk2_c2r, sp)
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  call transpose_y_to_x(wk2_r2r, out_r, sp)
 
                else if(kind(1) /= 0) then 
 
-                  ! zyx = 101
-                  ! ===== Swap Y --> X; 1D DFTs in X =====
-                  call transpose_y_to_x(wk2_r, wk1_r, sp)
-                  call r2r_dft_1m_x(wk1_r, wk1_r2r, kind)
-                  ! ===== Swap X --> Y; 1D FFTs in Y; Swap Y --> X =====
-                  call transpose_x_to_y(wk1_r2r, wk2_r, sp)
-                  call r2c_1m_y(wk2_r, wk2_r2c) 
-                  call transpose_y_to_x(wk2_r2c, out_c, sp)
-
+                  ! zyx = 011
+                  ! ===== 1D FFTs in Z; Swap Z --> Y=====
+                  call c2r_1m_z(in_c, wk3_c2r)
+                  call transpose_z_to_y(wk3_c2r, wk2_c2r, sp)
+                  ! ===== 1D FFTs in Y  =====
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  ! ===== Swap Y --> X, 1D DSTs in X =====
+                  call transpose_y_to_x(wk2_r2r, wk1_r2r, sp)
+                  call r2r_dft_1m_x(wk1_r2r, out_r)
+               
                end if
 
             end if
 
          else if (kind(3) /= 0 ) then
 
-            if(kind(2) /= 0) then
+            if(kind(2) == 0) then
 
-               ! ===== Swap Z --> Y; 1D DFTs in Y; Swap Y --> X ===== 
-               call transpose_z_to_y(in_r, in2_r, ph)
-               call r2r_dft_1m_y(in2_r, wk2_r2r, kind)
-               call transpose_y_to_x(wk2_r2r, wk1_r, sp)
+               ! ===== Swap Z --> Y ===== 
+               call transpose_z_to_y(in_c, in2_c, sp)
 
                if(kind(1) == 0) then  
 
-                  ! zyx = 010
-                  ! ===== 1D FFTs in X =====
-                  call r2c_1m_x(wk1_r, wk1_r2c) 
-                  ! ===== Swap X --> Y --> Z; 1D FFTs in Z; Swap Z --> Y --> X ===== 
-                  call transpose_x_to_y(wk1_r2c, wk2_r2c, sp)
-                  call transpose_y_to_z(wk2_r2c, wk3_r2c, sp)
-                  call c2c_1m_z(wk3_r2c, plan(0, 3))
-                  call transpose_z_to_y(wk3_r2c, wk2_r2c, sp)
-                  call transpose_y_to_x(wk2_r2c, out_c,   sp)
+                  ! zyx = 100
+                  ! ===== 1D FFTs in Y =====
+                  call c2c_1m_y(in2_c, plan(2, 2))
+                  ! ===== Swap Y --> X; 1D DFTs in X===== 
+                  call transpose_y_to_x(in2_c, wk1_c, sp)
+                  call c2r_1m_x(wk1_c, wk1_c2r)
+                  ! ===== Swap X --> Y --> Z; 1D DFTs in Z; Swap Z --> Y --> X===== 
+                  call transpose_x_to_y(wk1_c2r, wk2_c2r, sp)
+                  call transpose_y_to_z(wk2_c2r, wk3_c2r, sp)
+                  call r2r_dft_1m_z(wk3_c2r, wk3_r2r)
+                  call transpose_z_to_y(wk3_r2r, wk2_r2r, ph)
+                  call transpose_y_to_x(wk2_r2r, out_r,   ph)
+
 
                else if(kind(1) /= 0) then
 
-                  ! zxy = 011
-                  ! ===== 1D DFTs in X =====
-                  call r2r_dft_1m_x(wk1_r, wk1_r2r, kind)
-                  ! ===== Swap X --> Y --> Z; 1D FFTs in Z; Swap Z--> Y --> X ===== 
-                  call transpose_x_to_y(wk1_r2r, wk2_r2r, sp)
-                  call transpose_y_to_x(wk2_r2r, wk3_r2r, sp)
-                  call r2c_1m_z(wk3_r2r, wk3_r2c) 
-                  call transpose_z_to_y(wk3_r2c, wk2_r2c, sp)
-                  call transpose_y_to_x(wk2_r2c, out_c,   sp)
+                  ! zyx = 101
+                  ! ===== 1D FFTs in Y =====
+                  call c2r_1m_y(in2_c, wk2_c2r)
+                  ! ===== Swap Y --> Z; 1D DFTs in Z===== 
+                  call transpose_y_to_z(wk2_c2r, wk3_c2r, sp)
+                  call r2r_dft_1m_z(wk3_c2r, wk3_r2r)
+                  ! ===== Swap Z --> Y --> X; 1D DFTs in X===== 
+                  call transpose_z_to_y(wk3_r2r, wk2_r2r, sp)
+                  call transpose_y_to_x(wk2_r2r, wk1_r2r, sp)
+                  call r2r_dft_1m_x(wk1_r2r, out_r)
 
                end if
 
-
-            else if(kind(2) == 0) then
+            else if(kind(2) /= 0) then
 
                if(kind(1) == 0) then
+                  ! zyx = 110
+                  ! ===== Swap Z --> Y --> X; 1D FFTs in X===== 
+                  call transpose_z_to_y(in_c,  in2_c, sp)
+                  call transpose_y_to_x(in2_c, in1_c, sp)
+                  call c2r_1m_x(in1_c, wk1_c2r)
+                  ! ===== Swap X --> Y; 1D DFTs in Y===== 
+                  call transpose_x_to_y(wk1_c2r, wk2_c2r, sp)
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  ! ===== Swap Y --> Z; 1D DFTs in Z; Swap Z --> Y --> X ===== 
+                  call transpose_y_to_z(wk2_r2r, wk3_r2r, sp)
+                  call r2r_dft_1m_z(wk3_r2r, wk3_r2r)
+                  
 
-                  ! zyx = 000, restore to original
-                  ! ===== 1D FFTs in Z =====
-                  call r2c_1m_z(in_r, wk13)
-                  ! ===== Swap Z --> Y; 1D FFTs in Y =====
-                  call transpose_z_to_y(wk13, wk2_r2c, sp)
-                  call c2c_1m_y(wk2_r2c, plan(0, 2))
-                  ! ===== Swap Y --> X; 1D FFTs in X =====
-                  call transpose_y_to_x(wk2_r2c, out_c, sp)
-                  call c2c_1m_x(out_c, plan(0, 1))
+
+
+                  
 
                else if(kind(1) /= 0) then
 
-                  ! zyx = 001
-                  ! ===== Swap Z --> Y --> X; 1D DFTs in X ===== 
-                  call transpose_z_to_y(in_r,  in2_r, ph)
-                  call transpose_y_to_x(in2_r, in1_r, ph)
-                  call r2r_dft_1m_x(in1_r, wk1_r2r, kind)
-                  ! ===== Swap X --> Y; 1D FFTs in Y =====
-                  call transpose_x_to_y(wk1_r2r, wk2_r2r, sp)
-                  call r2c_1m_y(wk2_r2r, wk2_r2c)
-                  ! ===== Swap Y --> Z; 1D FFTs in Z; Swap Z --> Y --> X =====
-                  call transpose_y_to_z(wk2_r2c, wk3_r2c, sp)
-                  call c2c_1m_z(wk3_r2c, plan(0, 3))
-                  call transpose_z_to_y(wk3_r2c, wk2_r2c, sp)
-                  call transpose_y_to_x(wk2_r2c, out_c,   sp)
+                  
 
                end if
 
