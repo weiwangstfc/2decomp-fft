@@ -261,6 +261,99 @@ module decomp_2d_fft
       return
    end subroutine c2r_1m_z_plan
 
+
+   ! Return a DFTW3 plan for multiple 1D r2r DFTs in X direction
+   subroutine r2r_dst_1m_x_plan(plan1, decomp, isign)
+
+      implicit none
+
+      type(C_PTR), intent(OUT) :: plan1
+      TYPE(DECOMP_INFO), intent(IN) :: decomp
+      integer, intent(IN) :: isign
+
+      complex(mytype), allocatable, dimension(:, :, :) :: a1
+
+      allocate (a1(decomp%xsz(1), decomp%xsz(2), decomp%xsz(3)))
+
+#ifdef DOUBLE_PREC
+      call dfftw_plan_r2r(plan1, )
+      call dfftw_plan_many_dft(plan1, 1, decomp%xsz(1), &
+                               decomp%xsz(2)*decomp%xsz(3), a1, decomp%xsz(1), 1, &
+                               decomp%xsz(1), a1, decomp%xsz(1), 1, decomp%xsz(1), &
+                               isign, plan_type)
+#else
+      call sfftw_plan_many_dft(plan1, 1, decomp%xsz(1), &
+                               decomp%xsz(2)*decomp%xsz(3), a1, decomp%xsz(1), 1, &
+                               decomp%xsz(1), a1, decomp%xsz(1), 1, decomp%xsz(1), &
+                               isign, plan_type)
+#endif
+
+      deallocate (a1)
+
+      return
+   end subroutine r2r_dst_1m_x_plan
+
+   ! Return a FFTW3 plan for multiple 1D c2c FFTs in Y direction
+   subroutine c2c_1m_y_plan(plan1, decomp, isign)
+
+      implicit none
+
+      type(C_PTR), intent(OUT) :: plan1
+      TYPE(DECOMP_INFO), intent(IN) :: decomp
+      integer, intent(IN) :: isign
+
+      complex(mytype), allocatable, dimension(:, :) :: a1
+
+      ! Due to memory pattern of 3D arrays, 1D FFTs along Y have to be
+      ! done one Z-plane at a time. So plan for 2D data sets here.
+
+      allocate (a1(decomp%ysz(1), decomp%ysz(2)))
+
+#ifdef DOUBLE_PREC
+      call dfftw_plan_many_dft(plan1, 1, decomp%ysz(2), decomp%ysz(1), &
+                               a1, decomp%ysz(2), decomp%ysz(1), 1, a1, decomp%ysz(2), &
+                               decomp%ysz(1), 1, isign, plan_type)
+#else
+      call sfftw_plan_many_dft(plan1, 1, decomp%ysz(2), decomp%ysz(1), &
+                               a1, decomp%ysz(2), decomp%ysz(1), 1, a1, decomp%ysz(2), &
+                               decomp%ysz(1), 1, isign, plan_type)
+#endif
+
+      deallocate (a1)
+
+      return
+   end subroutine c2c_1m_y_plan
+
+   ! Return a FFTW3 plan for multiple 1D c2c FFTs in Z direction
+   subroutine c2c_1m_z_plan(plan1, decomp, isign)
+
+      implicit none
+
+      type(C_PTR), intent(OUT) :: plan1
+      TYPE(DECOMP_INFO), intent(IN) :: decomp
+      integer, intent(IN) :: isign
+
+      complex(mytype), allocatable, dimension(:, :, :) :: a1
+
+      allocate (a1(decomp%zsz(1), decomp%zsz(2), decomp%zsz(3)))
+
+#ifdef DOUBLE_PREC
+      call dfftw_plan_many_dft(plan1, 1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), a1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), 1, a1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), 1, isign, plan_type)
+#else
+      call sfftw_plan_many_dft(plan1, 1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), a1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), 1, a1, decomp%zsz(3), &
+                               decomp%zsz(1)*decomp%zsz(2), 1, isign, plan_type)
+#endif
+
+      deallocate (a1)
+
+      return
+   end subroutine c2c_1m_z_plan
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !  This routine performs one-time initialisations for the FFT engine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -288,6 +381,23 @@ module decomp_2d_fft
          call c2c_1m_y_plan(plan(2, 2), sp, FFTW_BACKWARD)
          call c2r_1m_x_plan(plan(2, 1), sp, ph)
 
+         ! For R2R sine transforms
+         call r2r_dst_1m_x_plan(plan(-1, 1), ph, FFTW_FORWARD)
+         call r2r_dst_1m_y_plan(plan(-1, 2), ph, FFTW_FORWARD)
+         call r2r_dst_1m_z_plan(plan(-1, 3), ph, FFTW_FORWARD)
+         call r2r_dst_1m_z_plan(plan(1, 3), ph, FFTW_BACKWARD)
+         call r2r_dst_1m_y_plan(plan(1, 2), ph, FFTW_BACKWARD)
+         call r2r_dst_1m_x_plan(plan(1, 1), ph, FFTW_BACKWARD)
+
+         ! For R2R cosine transforms
+         call r2r_dct_1m_x_plan(plan(-1, 1), ph, FFTW_FORWARD)
+         call r2r_dct_1m_y_plan(plan(-1, 2), ph, FFTW_FORWARD)
+         call r2r_dct_1m_z_plan(plan(-1, 3), ph, FFTW_FORWARD)
+         call r2r_dct_1m_z_plan(plan(1, 3), ph, FFTW_BACKWARD)
+         call r2r_dct_1m_y_plan(plan(1, 2), ph, FFTW_BACKWARD)
+         call r2r_dct_1m_x_plan(plan(1, 1), ph, FFTW_BACKWARD)
+
+
       else if (format == PHYSICAL_IN_Z) then
 
          ! For C2C transforms
@@ -305,6 +415,22 @@ module decomp_2d_fft
          call c2c_1m_x_plan(plan(2, 1), sp, FFTW_BACKWARD)
          call c2c_1m_y_plan(plan(2, 2), sp, FFTW_BACKWARD)
          call c2r_1m_z_plan(plan(2, 3), sp, ph)
+
+         ! For r2r sine transforms
+         call r2r_dst_1m_z_plan(plan(-1, 3), ph, FFTW_FORWARD)
+         call r2r_dst_1m_y_plan(plan(-1, 2), ph, FFTW_FORWARD)
+         call r2r_dst_1m_x_plan(plan(-1, 1), ph, FFTW_FORWARD)
+         call r2r_dst_1m_x_plan(plan(1, 1), ph, FFTW_BACKWARD)
+         call r2r_dst_1m_y_plan(plan(1, 2), ph, FFTW_BACKWARD)
+         call r2r_dst_1m_z_plan(plan(1, 3), ph, FFTW_BACKWARD)
+
+         ! For r2r cosine transforms
+         call r2r_dct_1m_z_plan(plan(-1, 3), ph, FFTW_FORWARD)
+         call r2r_dct_1m_y_plan(plan(-1, 2), ph, FFTW_FORWARD)
+         call r2r_dct_1m_x_plan(plan(-1, 1), ph, FFTW_FORWARD)
+         call r2r_dct_1m_x_plan(plan(1, 1), ph, FFTW_BACKWARD)
+         call r2r_dct_1m_y_plan(plan(1, 2), ph, FFTW_BACKWARD)
+         call r2r_dct_1m_z_plan(plan(1, 3), ph, FFTW_BACKWARD)
 
       end if
 
@@ -466,6 +592,69 @@ module decomp_2d_fft
       return
 
    end subroutine c2r_1m_z
+
+   ! Following routines calculate multiple one-dimensional DFTs to form
+   ! the basis of three-dimensional DFTs.
+
+   ! r2r transform, multiple 1D FDTs in x direction
+   subroutine r2r_dft_1m_x(inout, plan1, kind)
+
+      implicit none
+
+      real(mytype), dimension(:, :, :), intent(INOUT) :: inout
+      type(C_PTR), intent(IN) :: plan1
+      integer, dimension(:), intent(IN) :: kind
+ 
+#ifdef DOUBLE_PREC
+      call dfftw_execute_r2r(plan1, inout, inout)
+#else
+      call sfftw_execute_r2r(plan1, inout, inout)
+#endif
+
+      return
+   end subroutine r2r_dft_1m_x
+
+   ! c2c transform, multiple 1D FFTs in y direction
+   subroutine r2r_dft_1m_y(inout, plan1, kind)
+
+      implicit none
+
+      real(mytype), dimension(:, :, :), intent(INOUT) :: inout
+      type(C_PTR), intent(IN) :: plan1
+      integer, dimension(:), intent(IN) :: kind
+
+      integer :: k, s3
+
+      ! transform on one Z-plane at a time
+      s3 = size(inout, 3)
+      do k = 1, s3
+#ifdef DOUBLE_PREC
+         call dfftw_execute_r2r(plan1, inout(:, :, k), inout(:, :, k))
+#else
+         call dfftw_execute_r2r(plan1, inout(:, :, k), inout(:, :, k))
+#endif
+      end do
+
+      return
+   end subroutine r2r_dft_1m_y
+
+   ! c2c transform, multiple 1D FFTs in z direction
+   subroutine r2r_dft_1m_z(inout, kind)
+
+      implicit none
+
+      real(mytype), dimension(:, :, :), intent(INOUT) :: inout
+      type(C_PTR), intent(IN) :: plan1
+      integer, dimension(:), intent(IN) :: kind
+ 
+#ifdef DOUBLE_PREC
+      call dfftw_execute_r2r(plan1, inout, inout)
+#else
+      call sfftw_execute_r2r(plan1, inout, inout)
+#endif
+
+      return
+   end subroutine r2r_dft_1m_z
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! 3D FFT - complex to complex
@@ -969,6 +1158,7 @@ module decomp_2d_fft
             else if(kind(2) /= 0) then
 
                if(kind(1) == 0) then
+
                   ! zyx = 110
                   ! ===== Swap Z --> Y --> X; 1D FFTs in X===== 
                   call transpose_z_to_y(in_c,  in2_c, sp)
@@ -979,17 +1169,10 @@ module decomp_2d_fft
                   call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
                   ! ===== Swap Y --> Z; 1D DFTs in Z; Swap Z --> Y --> X ===== 
                   call transpose_y_to_z(wk2_r2r, wk3_r2r, sp)
-                  call r2r_dft_1m_z(wk3_r2r, wk3_r2r)
+                  call r2r_dft_1m_z(wk3_r2r, wk3_r2r2)
+                  call transpose_z_to_y(wk3_r2r2, wk2_r2r, sp)
+                  call transpose_y_to_x(wk2_r2r, out_r, sp)
                   
-
-
-
-                  
-
-               else if(kind(1) /= 0) then
-
-                  
-
                end if
 
             end if
@@ -998,14 +1181,130 @@ module decomp_2d_fft
 
       else if (format == PHYSICAL_IN_Z) then
 
+      if (kind(1) == 0 ) then
+
+            if (kind(2) == 0 ) then 
+
+               ! ===== 1D FFTs in X; Swap X --> Y  =====
+               call c2c_1m_x(in_c, plan(2, 1))
+               call transpose_x_to_y(in_c, wk2_c2c, sp)
+
+               if(kind(3) == 0) then 
+
+                  ! xyz = 000, restore to the original
+                  ! ===== 1D FFTs in Y  =====
+                  call c2c_1m_y(wk2_c2c, plan(2, 2))
+                  ! =====Swap Y --> Z; 1D FFTs in Z  =====
+                  call transpose_y_to_z(wk2_c2c, wk3_c2c, sp)
+                  call c2r_1m_z(wk3_c2c, out_r)
+
+               else if(kind(3) /= 0) then
+
+                  ! xyz = 001
+                  ! ===== 1D DFTs in Y  =====
+                  call c2r_1m_y(wk2_c2c, wk2_c2r)
+                  ! =====Swap Y --> Z; 1D FFTs in Z  =====
+                  call transpose_y_to_z(wk2_c2r, wk3_c2r, sp)
+                  call r2r_dft_1m_z(wk3_c2r, out_r)
+
+               end if
+
+            else if (kind(2) /= 0 )
+
+               if(kind(3) == 0) then  
+
+                  ! xyz = 010
+                  ! ===== 1D FFTs in X; Swap X --> Y --> Z =====
+                  call c2c_1m_x(in_c, plan(2, 1))
+                  call transpose_x_to_y(in_c,    wk2_c2c, sp)
+                  call transpose_y_to_z(wk2_c2c, wk3_c2c, sp)
+                  ! ===== 1D FFTs in Z  =====
+                  call c2r_1m_z(wk3_c2c, wk3_c2r)
+                  ! ===== Swap Z--> Y; 1D DFTs in Y; Swap Y --> Z =====
+                  call transpose_z_to_y(wk3_c2r, wk2_c2r, sp)
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  call transpose_y_to_z(wk2_r2r, out_r, sp)
+
+               else if(kind(3) /= 0) then 
+
+                  ! xyz = 011
+                  ! ===== 1D FFTs in X; Swap X --> Y=====
+                  call c2r_1m_x(in_c, wk1_c2r)
+                  call transpose_x_to_y(wk1_c2r, wk2_c2r, sp)
+                  ! ===== 1D DFTs in Y  =====
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  ! ===== Swap Y --> Z, 1D DSTs in Z =====
+                  call transpose_y_to_z(wk2_r2r, wk3_r2r, sp)
+                  call r2r_dft_1m_z(wk3_r2r, out_r)
+               
+               end if
+
+            end if
+
+         else if (kind(1) /= 0 ) then
+
+            if(kind(2) == 0) then
+
+               ! ===== Swap X --> Y ===== 
+               call transpose_x_to_y(in_c, in2_c, sp)
+
+               if(kind(3) == 0) then  
+
+                  ! xyz = 100
+                  ! ===== 1D FFTs in Y =====
+                  call c2c_1m_y(in2_c, plan(2, 2))
+                  ! ===== Swap Y --> Z; 1D DFTs in X===== 
+                  call transpose_y_to_z(in2_c, wk3_c, sp)
+                  call c2r_1m_z(wk3_c, wk3_c2r)
+                  ! ===== Swap Z--> Y --> X; 1D DFTs in X; Swap X --> Y --> Z===== 
+                  call transpose_z_to_y(wk3_c2r, wk2_c2r, sp)
+                  call transpose_y_to_x(wk2_c2r, wk1_c2r, sp)
+                  call r2r_dft_1m_x(wk1_c2r, wk1_r2r)
+                  call transpose_x_to_y(wk1_r2r, wk2_r2r, ph)
+                  call transpose_y_to_z(wk2_r2r, out_r,   ph)
+
+
+               else if(kind(3) /= 0) then
+
+                  ! zyx = 101
+                  ! ===== 1D FFTs in Y =====
+                  call c2r_1m_y(in2_c, wk2_c2r)
+                  ! ===== Swap Y --> X; 1D DFTs in X===== 
+                  call transpose_y_to_x(wk2_c2r, wk1_c2r, sp)
+                  call r2r_dft_1m_x(wk1_c2r, wk1_r2r)
+                  ! ===== Swap X--> Y --> Z; 1D DFTs in Z===== 
+                  call transpose_x_to_y(wk1_r2r, wk2_r2r, sp)
+                  call transpose_y_to_z(wk2_r2r, wk3_r2r, sp)
+                  call r2r_dft_1m_z(wk3_r2r, out_r)
+
+               end if
+
+            else if(kind(2) /= 0) then
+
+               if(kind(3) == 0) then
+
+                  ! xyz = 110
+                  ! ===== Swap X --> Y --> Z; 1D FFTs in Z===== 
+                  call transpose_x_to_y(in_c,  in2_c, sp)
+                  call transpose_y_to_z(in2_c, in3_c, sp)
+                  call c2r_1m_z(in3_c, wk3_c2r)
+                  ! ===== Swap Z --> Y; 1D DFTs in Y===== 
+                  call transpose_z_to_y(wk3_c2r, wk2_c2r, sp)
+                  call r2r_dft_1m_y(wk2_c2r, wk2_r2r)
+                  ! ===== Swap Y --> X; 1D DFTs in X; Swap X --> Y --> Z ===== 
+                  call transpose_y_to_x(wk2_r2r, wk1_r2r, sp)
+                  call r2r_dft_1m_x(wk1_r2r, wk1_r2r2)
+                  call transpose_x_to_y(wk1_r2r2, wk2_r2r, sp)
+                  call transpose_y_to_z(wk2_r2r, out_r, sp)
+                  
+               end if
+
+            end if
+
+         end if
+
 
       end if
-
-      
-
-
-
-      
 
    end subroutine
 

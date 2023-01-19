@@ -50,6 +50,7 @@ interface decomp_2d_fft_3d
    module procedure fft_3d_c2c
    module procedure fft_3d_r2c
    module procedure fft_3d_c2r
+   module procedure fft_3d_r2r
 end interface
 
 interface
