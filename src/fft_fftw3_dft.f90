@@ -35,9 +35,13 @@ module decomp_2d_fft
    !     use plan(0,j) for r2c transforms;
    !     use plan(2,j) for c2r transforms;
    ! For dst/dct r2r transforms:
-   !     use plan(3,j) for dst r2r transforms;
-   !     use plan(4,j) for dct r2r transforms;
-   type(C_PTR), save :: plan(-1:4, 3)
+   !     use plan(3,j) for dst-dst r2r transforms; FFTW_RODFT00 (DST-I): odd around j=-1 and odd around j=n.
+   !     use plan(4,j) for dct-dct r2r transforms; FFTW_REDFT00 (DCT-I): even around j=0 and even around j=n-1.
+   !     use plan(5,j) for dst-dct r2r transforms; FFTW_RODFT01 (DST-III): odd around j=-1 and even around j=n-1.
+   !     use plan(6,j) for dct-dst r2r transforms; FFTW_REDFT01 (DCT-III, “the” IDCT): even around j=0 and odd around j=n.
+   integer, parameter :: nplan0 = -1
+   integer, parameter :: nplan1 = 6
+   type(C_PTR), save :: plan(nplan0:nplan1, 3)
 
    ! This is defined in fftw3.f03 but not in fftw3.f
    interface
@@ -371,9 +375,9 @@ module decomp_2d_fft
          call c2c_1m_x_plan(plan(-1, 1), ph, FFTW_FORWARD)
          call c2c_1m_y_plan(plan(-1, 2), ph, FFTW_FORWARD)
          call c2c_1m_z_plan(plan(-1, 3), ph, FFTW_FORWARD)
-         call c2c_1m_z_plan(plan(1, 3), ph, FFTW_BACKWARD)
-         call c2c_1m_y_plan(plan(1, 2), ph, FFTW_BACKWARD)
-         call c2c_1m_x_plan(plan(1, 1), ph, FFTW_BACKWARD)
+         call c2c_1m_z_plan(plan( 1, 3), ph, FFTW_BACKWARD)
+         call c2c_1m_y_plan(plan( 1, 2), ph, FFTW_BACKWARD)
+         call c2c_1m_x_plan(plan( 1, 1), ph, FFTW_BACKWARD)
 
          ! For R2C/C2R tranforms
          call r2c_1m_x_plan(plan(0, 1), ph, sp)
@@ -383,14 +387,30 @@ module decomp_2d_fft
          call c2c_1m_y_plan(plan(2, 2), sp, FFTW_BACKWARD)
          call c2r_1m_x_plan(plan(2, 1), sp, ph)
 
-         ! For R2R sine transforms
+         ! use plan(3,j) for dst-dst r2r transforms; FFTW_RODFT00 (DST-I): odd around j=-1 and odd around j=n.
+         ! use plan(4,j) for dct-dct r2r transforms; FFTW_REDFT00 (DCT-I): even around j=0 and even around j=n-1.
+         ! use plan(5,j) for dst-dct r2r transforms; FFTW_RODFT01 (DST-III): odd around j=-1 and even around j=n-1.
+         ! use plan(6,j) for dct-dst r2r transforms; FFTW_REDFT01 (DCT-III, “the” IDCT): even around j=0 and odd around j=n.
+   
+         ! For R2R sine-sine transforms
          call r2r_1m_x_plan(plan(3, 1), ph, FFTW_RODFT00)
          call r2r_1m_y_plan(plan(3, 2), ph, FFTW_RODFT00)
          call r2r_1m_z_plan(plan(3, 3), ph, FFTW_RODFT00)
-         ! For R2R cosine transforms
+
+         ! For R2R sine-cosine transforms
+         call r2r_1m_x_plan(plan(5, 1), ph, FFTW_RODFT01)
+         call r2r_1m_y_plan(plan(5, 2), ph, FFTW_RODFT01)
+         call r2r_1m_z_plan(plan(5, 3), ph, FFTW_RODFT01)
+
+         ! For R2R cosine-cosine transforms
          call r2r_1m_x_plan(plan(4, 1), ph, FFTW_REDFT00)
          call r2r_1m_y_plan(plan(4, 2), ph, FFTW_REDFT00)
          call r2r_1m_z_plan(plan(4, 3), ph, FFTW_REDFT00)
+
+         ! For R2R cosine-sine transforms
+         call r2r_1m_x_plan(plan(6, 1), ph, FFTW_REDFT01)
+         call r2r_1m_y_plan(plan(6, 2), ph, FFTW_REDFT01)
+         call r2r_1m_z_plan(plan(6, 3), ph, FFTW_REDFT01)
 
 
       else if (format == PHYSICAL_IN_Z) then
@@ -411,20 +431,64 @@ module decomp_2d_fft
          call c2c_1m_y_plan(plan(2, 2), sp, FFTW_BACKWARD)
          call c2r_1m_z_plan(plan(2, 3), sp, ph)
 
-         ! For r2r sine transforms
+         ! use plan(3,j) for dst-dst r2r transforms; FFTW_RODFT00 (DST-I): odd around j=-1 and odd around j=n.
+         ! use plan(4,j) for dct-dct r2r transforms; FFTW_REDFT00 (DCT-I): even around j=0 and even around j=n-1.
+         ! use plan(5,j) for dst-dct r2r transforms; FFTW_RODFT01 (DST-III): odd around j=-1 and even around j=n-1.
+         ! use plan(6,j) for dct-dst r2r transforms; FFTW_REDFT01 (DCT-III, “the” IDCT): even around j=0 and odd around j=n.
+   
+         ! For R2R sine-sine transforms
          call r2r_1m_z_plan(plan(3, 3), ph, FFTW_RODFT00)
          call r2r_1m_y_plan(plan(3, 2), ph, FFTW_RODFT00)
          call r2r_1m_x_plan(plan(3, 1), ph, FFTW_RODFT00)
 
-         ! For r2r cosine transforms
+         ! For R2R sine-cosine transforms
+         call r2r_1m_z_plan(plan(5, 3), ph, FFTW_RODFT01)
+         call r2r_1m_y_plan(plan(5, 2), ph, FFTW_RODFT01)
+         call r2r_1m_x_plan(plan(5, 1), ph, FFTW_RODFT01)
+
+         ! For R2R cosine-cosine transforms
          call r2r_1m_z_plan(plan(4, 3), ph, FFTW_REDFT00)
          call r2r_1m_y_plan(plan(4, 2), ph, FFTW_REDFT00)
          call r2r_1m_x_plan(plan(4, 1), ph, FFTW_REDFT00)
+
+         ! For R2R cosine-sine transforms
+         call r2r_1m_z_plan(plan(6, 3), ph, FFTW_REDFT01)
+         call r2r_1m_y_plan(plan(6, 2), ph, FFTW_REDFT01)
+         call r2r_1m_x_plan(plan(6, 1), ph, FFTW_REDFT01)
+
 
       end if
 
       return
    end subroutine init_fft_engine
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !  from input to get the plan index
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   function nplan ( kind0 ) result(kind)
+      integer, dimension(2, 3), intent(in) :: kind0
+      integer , dimension(3) :: kind
+      integer :: i
+      ! ===== transformation type =====
+      ! input: kind0( 2 = left:right, 3 = dimension x, y, z)
+      ! kind0 (user specified) kind(to match the 'plan' defination)
+      ! 0 = periodic = normal fft
+      ! 1 = sine transformation
+      ! 2 = cosine transformation
+      ! combination: 
+      ! 0 - 0 = normal fft       = 0
+      ! 1 - 1 = sine   - sine    = 3
+      ! 2 - 2 = cosine - cosine  = 4
+      ! 1 - 2 = sine   - cosine  = 5
+      ! 2 - 1 = cosine - sine    = 6
+      do i = 1, 3
+         if(kind0(1, i) == 0 .and. kind0(2, i) == 0) kind(i) = 0
+         if(kind0(1, i) == 1 .and. kind0(2, i) == 1) kind(i) = 3
+         if(kind0(1, i) == 2 .and. kind0(2, i) == 2) kind(i) = 4
+         if(kind0(1, i) == 1 .and. kind0(2, i) == 2) kind(i) = 5
+         if(kind0(1, i) == 2 .and. kind0(2, i) == 1) kind(i) = 6
+      end do
+
+    end function
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    !  This routine performs one-time finalisations for the FFT engine
@@ -436,7 +500,7 @@ module decomp_2d_fft
       integer :: i, j
 
       do j = 1, 3
-         do i = -1, 2
+         do i = nplan0, nplan1
 #ifdef DOUBLE_PREC
             call dfftw_destroy_plan(plan(i, j))
 #else
@@ -751,22 +815,14 @@ module decomp_2d_fft
 
       real(mytype), dimension(:, :, :), intent(INOUT) :: in_r
       complex(mytype), dimension(:, :, :), intent(OUT) :: out_c
-      integer, dimension(:), intent(IN), optional :: kind0
+      integer, dimension(:, :), intent(IN), optional :: kind0
 
       integer, dimension(3) :: kind
 
 
       ! ===== transformation type =====
-      ! dimension 1, 2, 3 = direction x, y z
-      ! kind0 (user specified) kind(to match the 'plan' defination)
-      ! 0 = normal fft         = 0
-      ! 1 = sine transform     = 3
-      ! 2 = cosine transform   = 4
-
       if(PRESENT(kind0)) then
-         if(kind(1) /= 0) kind(1) = kind0(1) + 2
-         if(kind(2) /= 0) kind(2) = kind0(2) + 2
-         if(kind(3) /= 0) kind(3) = kind0(3) + 2
+         kind(1:3) = nplan(kind0)
       else
          kind(1:3) = 0 
       end if
@@ -863,11 +919,21 @@ module decomp_2d_fft
                   ! xyz = 000, restore to original
                   ! ===== 1D FFTs in X =====
                   call r2c_1m_x(in_r, wk13)
+
                   ! ===== Swap X --> Y; 1D FFTs in Y =====
+               if (dims(1) > 1) then
                   call transpose_x_to_y(wk13, wk2_r2c, sp)
+                  call c2c_1m_y(wk2_r2c, plan(0, 2))
+               else
                   call c2c_1m_y(wk13, plan(0, 2))
+               end if
+
                   ! ===== Swap Y --> Z; 1D FFTs in Z =====
+               if (dims(1) > 1) then
+                  call transpose_y_to_z(wk2_r2c, out_c, sp)
+               else
                   call transpose_y_to_z(wk13, out_c, sp)
+               end if
                   call c2c_1m_z(out_c, plan(0, 3))
 
                else if(kind(3) /= 0) then
@@ -977,11 +1043,20 @@ module decomp_2d_fft
                   ! zyx = 000, restore to original
                   ! ===== 1D FFTs in Z =====
                   call r2c_1m_z(in_r, wk13)
+
                   ! ===== Swap Z --> Y; 1D FFTs in Y =====
-                  call transpose_z_to_y(wk13, wk2_r2c, sp)
-                  call c2c_1m_y(wk2_r2c, plan(0, 2))
+                  if (dims(1) > 1) then
+                     call transpose_z_to_y(wk13, wk2_r2c, sp)
+                     call c2c_1m_y(wk2_r2c, plan(0, 2))
+                  else  ! out_c==wk2_r2c if 1D decomposition
+                     call transpose_z_to_y(wk13, out_c, sp)
+                     call c2c_1m_y(out_c, plan(0, 2))
+                  end if
+
                   ! ===== Swap Y --> X; 1D FFTs in X =====
-                  call transpose_y_to_x(wk2_r2c, out_c, sp)
+                  if (dims(1) > 1) then
+                     call transpose_y_to_x(wk2_r2c, out_c, sp)
+                  end if
                   call c2c_1m_x(out_c, plan(0, 1))
 
                else if(kind(1) /= 0) then
@@ -1026,16 +1101,8 @@ module decomp_2d_fft
 
 
       ! ===== transformation type =====
-      ! dimension 1, 2, 3 = direction x, y z
-      ! kind0 (user specified) kind(to match the 'plan' defination)
-      ! 0 = normal fft         = 0
-      ! 1 = sine transform     = 3
-      ! 2 = cosine transform   = 4
-
       if(PRESENT(kind0)) then
-         if(kind(1) /= 0) kind(1) = kind0(1) + 2
-         if(kind(2) /= 0) kind(2) = kind0(2) + 2
-         if(kind(3) /= 0) kind(3) = kind0(3) + 2
+         kind(1:3) = nplan(kind0)
       else
          kind(1:3) = 0 
       end if
@@ -1316,23 +1383,15 @@ module decomp_2d_fft
 
 
       ! ===== transformation type =====
-      ! dimension 1, 2, 3 = direction x, y z
-      ! kind0 (user specified) kind(to match the 'plan' defination)
-      ! 0 = normal fft         = 0
-      ! 1 = sine transform     = 3
-      ! 2 = cosine transform   = 4
-
       if(PRESENT(kind0)) then
-         if(kind(1) /= 0) kind(1) = kind0(1) + 2
-         if(kind(2) /= 0) kind(2) = kind0(2) + 2
-         if(kind(3) /= 0) kind(3) = kind0(3) + 2
+         kind(1:3) = nplan(kind0)
       else
          kind(1:3) = 0 
       end if
 
       if( kind(1) * kind(2) * kind(3) == 0) then
          errorcode = 11
-         call decomp_2d_abort(__FILE__, __LINE__, errorcode, 'Invalid input for fft_3d_r2r.'
+         call decomp_2d_abort(__FILE__, __LINE__, errorcode, 'Invalid input for fft_3d_r2r.')
       end if
 
       
