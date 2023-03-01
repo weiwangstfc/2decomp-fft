@@ -10,6 +10,8 @@ OBJ = halo_test.o
 NP ?= 1
 MPIRUN ?= mpirun
 
+all: halo_test
+
 halo_test: $(OBJ)
 	$(FC) $(FFLAGS) $(OPT) $(DEFS) $(INC) -o $@ $(OBJ) $(LIBS)
 
